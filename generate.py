@@ -7,6 +7,7 @@ import operator
 import sys
 import textwrap
 import re
+import traceback
 
 import pkg_resources
 import six
@@ -14,7 +15,7 @@ import six
 from oslo_config._i18n import _LW
 from oslo_config import cfg
 
-from oslo_config.generator import _get_groups, _list_opts, _format_defaults
+from oslo_config.generator import _get_groups, _list_opts, _format_defaults, _TYPE_NAMES
 
 import stevedore.named  # noqa
 
@@ -111,7 +112,7 @@ def _output_opts(f, group, group_data, minimal=False, summarize=False):
             except Exception as err:
                 f.write('# Warning: Failed to format sample for %s\n' %
                         (opt.dest,))
-                f.write('# %s\n' % (err,))
+                f.write('# %s\n' % (traceback.format_exc(),))
 
 
 class _ValuesSkeletonFormatter(object):
@@ -164,10 +165,10 @@ class _ValuesSkeletonFormatter(object):
         for default_str in defaults:
 
             # alanmeadows(NOTE)
-            # 
+            #
             # avert your eyes, I got lazy.
-            
-            if len(group_name.split('.')) > 1:  
+
+            if len(group_name.split('.')) > 1:
 
                 line = '{{- if not .%s -}}{{- set . "%s" dict -}}{{- end -}}\n' % (group_name.lower().split('.')[0], group_name.lower().split('.')[0])
 
@@ -175,11 +176,11 @@ class _ValuesSkeletonFormatter(object):
                     self.done.append(line)
                     lines.append(line)
 
-                line = '{{- if not .%s.%s -}}{{- set .%s "%s" dict -}}{{- end -}}\n' % (group_name.lower().split('.')[0], 
+                line = '{{- if not .%s.%s -}}{{- set .%s "%s" dict -}}{{- end -}}\n' % (group_name.lower().split('.')[0],
                                                                                   group_name.lower().split('.')[1],
                                                                                   group_name.lower().split('.')[0],
                                                                                   group_name.lower().split('.')[1])
-                
+
                 if line not in self.done:
                     self.done.append(line)
                     lines.append(line)
@@ -191,13 +192,13 @@ class _ValuesSkeletonFormatter(object):
                     self.done.append(line)
                     lines.append(line)
 
-            if len(namespace.split('.')) == 1:                
+            if len(namespace.split('.')) == 1:
                 line = '{{- if not .%s.%s -}}{{- set .%s "%s" dict -}}{{- end -}}\n' % (group_name.lower(), namespace, group_name.lower(), namespace)
                 if line not in self.done:
                     self.done.append(line)
                     lines.append(line)
 
-            if len(namespace.split('.')) > 1:  
+            if len(namespace.split('.')) > 1:
 
                 line = '{{- if not .%s.%s -}}{{- set .%s "%s" dict -}}{{- end -}}\n' % (group_name.lower(), namespace.split('.')[0], group_name.lower(), namespace.split('.')[0])
                 if line not in self.done:
@@ -214,7 +215,7 @@ class _ValuesSkeletonFormatter(object):
                     self.done.append(line)
                     lines.append(line)
 
-            if len(namespace.split('.')) > 2:  
+            if len(namespace.split('.')) > 2:
                 line = '{{- if not .%s.%s.%s.%s -}}{{- set .%s.%s.%s "%s" dict -}}{{- end -}}\n' % (group_name.lower(), \
                                                                                             namespace.split('.')[0], \
                                                                                             namespace.split('.')[1], \
@@ -431,7 +432,7 @@ class _HelmOptFormatter(object):
                 "'format_defaults' method. A default formatter is not "
                 "available so the best-effort formatter will be used.",
                 {'type': opt.type, 'name': opt.name})
-             
+            defaults = _format_defaults(opt)
         for default_str in defaults:
             if type(opt) in [cfg.MultiOpt, cfg.MultiStrOpt]:
                 lines.append('# from .%s.%s.%s (multiopt)\n' % (group_name.lower(), namespace, opt.dest))
@@ -497,7 +498,7 @@ def generate(conf):
 {{- define "%s.conf.%s_values_skeleton" -}}
 \n''' % (conf.helm_chart, conf.helm_namespace))
 
-    ### values skeleton 
+    ### values skeleton
     formatter = _ValuesSkeletonFormatter(output_file=output_file,
                               wrap_width=conf.wrap_width)
 
